@@ -16,7 +16,7 @@
 
 브라우저에서 전송한 데이터를 스프링 MVC는 아래와 같은 3-tier 방식을 거쳐 처리하게 된다.
 
-![WEB Project 3-Tier](./picture_woojin/WEB_3_Tier.JPG)
+![WEB Project 3-Tier](./picture/WEB_3_Tier.JPG)
 
 1. 화면 계층(Presentation Tier)
 
@@ -42,7 +42,7 @@
 
     Spring에서는 아래 그림처럼 같은 데이터 엑세스 계층이지만 역할에 맞게 수직적으로 나눌 수 있다.
 
-    ![데이터 엑세스 계층 수직 계층 구조](./picture_woojin/Persistence_Tier.JPG)
+    ![데이터 엑세스 계층 수직 계층 구조](./picture/Persistence_Tier.JPG)
 
 ---
 
@@ -75,7 +75,7 @@
 VO 클래스 생성은 테이블 설계를 기준으로 작성하면 된다.  
 현재 tbl_board의 구성은 아래와 같다.
 
-![tbl_board 구성](./picture_woojin/tbl_board.JPG)
+![tbl_board 구성](./picture/tbl_board.JPG)
 
 이 구성표를 가지고 BoardVO 클래스를 만들어 준다.
 
@@ -257,3 +257,34 @@ insert into tbl_board (bno,title,content,writer) values (#{bno}, #{title}, #{con
 insert()는 단순히 다음 시퀀스 값을 구해서 insert할 때 사용하므로 1번의 SQL 처리만으로 작업이 완료된다.
 
 insertSelectKey()는 @SelectKey라는 MyBatis의 어노테이션을 이용해 PK값을 미리(before) SQL을 통해서 처리해 두고 특정한 이름으로 결과를 보관하는 방식을 이용해 이 처리된 결과로 insert문을 실행하는 방식을 이용한다.
+
+아래는 위의 Mapper를 Test할 수 있는 Test 클래스 추가 코드이다.
+
+```
+src/test/java/org.zerock.mapper/BoardMapperTests
+
+// insert문 Test
+// bno가 null로 입력
+@Test
+public void testInsert() {
+	BoardVO board = new BoardVO();
+	board.setTitle("새로 작성하는 글");
+	board.setContent("새로 작성하는 내용");
+	board.setWriter("newbie");
+
+	mapper.insert(board);
+	log.info(board);
+}
+
+// insertSelectKey문 Test
+@Test
+public void testInsertSelectKey() {
+	BoardVO board = new BoardVO();
+	board.setTitle("새로 작성하는 글 select key");
+	board.setContent("새로 작성하는 내용 select key");
+	board.setWriter("newbie");
+
+	mapper.insertSelectKey(board);
+	log.info(board);
+}
+```
