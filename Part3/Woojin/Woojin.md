@@ -288,3 +288,373 @@ public void testInsertSelectKey() {
 	log.info(board);
 }
 ```
+
+### **Read(Select) 처리**
+
+Read 처리는 데이터를 조회하는 작업(Select)으로 PK를 이용해서 처리하므로 BoardMapper의 파라미터 역시 BoardVO 클래스의 bno 타입 정보를 이용해서 처리한다.
+
+따라서, 아래와 같이 BoardMapper 인터페이스의 메서드가 bno를 파라미터로 가진다.
+
+```
+org.zerock.mapper/BoardMapper 인터페이스 일부
+
+public interface BoardMapper {
+    public BoardVO read(Long bno);
+}
+```
+
+MyBatis는 Mapper 인터페이스의 리턴 타입에 맞게 select의 결과를 처리하기 때문에 아래의 select문의 결과는 BoardVO에 각 속성에 맞는 값으로 처리된다.
+
+```
+src/main/resources/org/zerock/mapper/BoardMapper.xml
+<select id="read" resultType="org.zerock.domain.BoardVO">
+    select * from tbl_board where bno = #{bno}
+</select>
+```
+
+위 Read 인터페이스를 테스트 할 코드는 아래와 같다
+
+```
+src/test/java/org.zerock.mapper/BoardMapperTests
+//Read 처리 Test
+@Test
+public void testRead() {
+    // read함수로 bno값이 5인 board를 찾아서 출력
+    BoardVO board = mapper.read(5L);
+    log.info(board);
+}
+```
+
+### **Delete 처리**
+
+Delete 처리 역시 특정한 데이터를 삭제하는 것으로 PK를 이용해서 처리한다. 등록, 삭제, 수정과 같은 DML 작업은 '몇 건의 데이터가 삭제(혹은 수정) 되었는지를' 반환할 수 있다.
+
+read와 같이 bno를 파라미터로 가진다.
+
+```
+org.zerock.mapper/BoardMapper 인터페이스 일부
+
+public interface BoardMapper {
+	public int delete(long bno);
+}
+```
+
+```
+src/main/resources/org/zerock/mapper/BoardMapper.xml
+<delete id="delete">
+	delete from tbl_board where bno = #{bno}
+</delete>
+```
+
+위 Delete 인터페이스를 테스트 할 코드는 아래와 같다
+
+```
+src/test/java/org.zerock.mapper/BoardMapperTests
+// Delete 처리 Test
+@Test
+public void testDelete() {
+	// delete함수로 bno값이 3인 board를 찾아서 삭제 후 삭제 count 출력
+	log.info("DELETE COUNT: " + mapper.delete(3L));
+}
+```
+
+### **Update 처리**
+
+Update는 게시물등의 제목, 내용, 작성자를 수정하는 것으로 업데이트할 때에 최종 수정시간을 데이터베이스 내 현재 시간으로 수정해줘야 한다. Update 처리는 delete와 마찬가지로 '몇 개의 데이터가 수정되었는가'를 처리할 수 있게 int타입으로 메서드를 설계할 수 있다.
+
+```
+org.zerock.mapper/BoardMapper 인터페이스 일부
+
+public interface BoardMapper {
+	public int update(BoardVO board);
+}
+```
+
+수행할 SQL문은 updateDate가 현재 시간으로 수정되고, regdate 칼럼은 최초 생성 시간이므로 건드리지 않는 것이 중요하다.
+
+```
+src/main/resources/org/zerock/mapper/BoardMapper.xml
+<update id="update">
+	update tbl_board
+	set title = #{title},
+	content = #{content},
+	writer = #{writer},
+	updateDate = sysdate
+	where bno = #{bno}
+</update>
+```
+
+위 Update 인터페이스를 테스트 할 코드는 아래와 같다.  
+테스트 코드는 read()를 이용해서 가져온 BoardVO 객체의 일부를 수정하거나, 새로운 객체를 생성해서 처리할 수 있다. 예제는 객체를 생성해서 테스트를 진행한다.
+
+```
+src/test/java/org.zerock.mapper/BoardMapperTests
+// Update 처리 Test
+@Test
+public void testUpdate() {
+	BoardVO board = new BoardVO();
+	// 실행전 수정할 번호가 존재하는 지 확인해줄 것
+	board.setBno(5L);
+	board.setTitle("수정된 제목");
+	board.setContent("수정된 내용");
+	board.setWriter("user00");
+	
+	int count = mapper.update(board);
+	log.info("UPDATE COUNT: " + count);
+}
+```
+
+---
+
+## **비지니스 계층의 구현**
+
+비즈니스 계층은 고객의 요구사항을 반영하는 계층으로 프레젠테이션과 영속 계층의 중간 다리 역할을 한다. 비즈니스 계층은 로직을 기준으로 해서 처리하게 된다.
+
+ex) 상품을 구매한다 -> 영속계층 : '상품' '회원'으로 나누어 설계  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-> 비즈니스 계층 : '구매 서비스'로 상품과 회원을 합쳐서 로직으로 설계
+
+
+비지니스 계층 구현 시에 객체들을 주로 'Service(서비스)'용어로 표현한다.
+
+### **BoardService 인터페이스와 BoardServiceImpl 구현**
+
+예제에서 사용할 BoardService 인터페이스와 이를 구현한 BoardServiceImpl을 작성한다.
+
+```
+org.zerock.service/BoardService
+
+public interface BoardService {
+	
+	public void register(BoardVO board);
+	
+	public BoardVO get(Long bno);
+	
+	public boolean modify(BoardVO board);
+	
+	public boolean remove(Long bno);
+	
+	public List<BoardVO> getList();
+	
+}
+```
+
+인터페이스의 메서드를 설계할 때 메서드 이름은 현실적인 로직의 이름을 붙이는 것이 좋다. 명백하게 반환해야 할 데이터가 있는 경우는 메서드의 리턴 타입을 지정할 수 있다.
+
+```
+org.zerock.service/BoardServiceoImpl
+
+@Log4j
+@Service
+@AllArgsConstructor
+public class BoardServiceImpl implements BoardService{
+
+	private BoardMapper mapper;
+	
+	@Override
+	public void register(BoardVO board) {
+		
+	}
+
+    ...
+}
+```
+
+BoardService를 구현한 BoardServiceImpl은 지금은 약간의 로그를 기록할 수 있는 정도의 코드를 작성한다.
+
+mapper 객체를 이용해서 영속 계층 작업을 수행하는 것을 알 수 있다.
+
+@Service 어노테이션으로 이 객체가 비즈니스 영역을 담당하는 객체임을 표시해준다.
+이후에 root-context.xml에 표시된 Service가 Spring에서 인식할 수 있도록 base-package로 Service 패키지를 등록해준다. (Context항목이 없으면 Namespace에서 추가)
+
+```
+root-context.xml
+
+<context:component-scan base-package="org.zerock.service"></context:component-scan>
+```
+
+### **비지니스 계층 테스트**
+
+첫 테스트는 BoardService 객체가 제대로 주입이 가능한지 확인한다.
+
+```
+src/test/java/org/zerock/service/BoardServiceTests
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration("file:src/main/webapp/WEB-INF/spring/root-context.xml")
+@Log4j
+public class BoardServiceTests {
+	@Setter(onMethod_ = {@Autowired})
+	private BoardService service;
+	
+    // service 의존성 주입 Test
+	@Test
+	public void testExist() {
+		log.info(service);
+		assertNotNull(service);
+	}
+}
+```
+
+### **등록 작업의 구현과 테스트**
+
+등록 작업은 BoardServiceImpl에서 파라미터로 전달되는 BoardVO 타입의 객체를 BoardMapper를 통해서 처리한다.
+
+```
+org.zerock.service/BoardServiceoImpl
+
+public class BoardServiceImpl implements BoardService{
+
+    private BoardMapper mapper;
+
+    @Override
+    public void register(BoardVO board) {
+        log.info("register....." + board);
+        
+        mapper.insertSelectKey(board);
+    }
+}
+```
+
+```
+src/test/java/org/zerock/service/BoardServiceTests
+
+// Register(영속 : insertkey) 처리 Test
+@Test
+public void testRegister() {
+    BoardVO board = new BoardVO();
+    board.setTitle("새로 작성하는 글");
+    board.setContent("새로 작성하는 내용");
+    board.setWriter("newbie");
+    
+    service.register(board);
+    
+    log.info("생성된 게시물의 번호: " + board.getBno());
+}
+```
+
+### **목록(리스트) 작업의 구현과 테스트**
+
+목록(리스트) 작업은 BoardServiceImpl에서 현재 테이블에 저장된 모든 데이터를 가져오므로 반환 값으로 `List<BoardVO>`을 사용하는 형태로 구현한다.
+
+```
+org.zerock.service/BoardServiceoImpl
+
+public class BoardServiceImpl implements BoardService{
+
+    private BoardMapper mapper;
+
+    @Override
+	public List<BoardVO> getList() {
+		
+		Log.info("getList......");
+		
+		return mapper.getList();
+	}
+}
+```
+
+getList의 Test코드는 결과값을 반복해서 찍어보는 형식으로 작성한다.
+
+```
+src/test/java/org/zerock/service/BoardServiceTests
+
+// getList(영속 : 전체 select) 처리 Test
+@Test
+public void testGetList() {
+    service.getList().forEach(board->log.info(board));
+}
+```
+
+### **조회 작업의 구현과 테스트**
+
+조회 작업은 BoardServiceImpl에서 특정 게시물의 번호(bno)가 파라미터이고, 그 bno 값에 해당하는 BoardVO의 인스터스가 리턴되는 메서드로 작성한다.
+
+```
+org.zerock.service/BoardServiceoImpl
+
+public class BoardServiceImpl implements BoardService{
+
+    private BoardMapper mapper;
+
+    @Override
+	public BoardVO get(Long bno) {
+		
+		Log.info("get....." + bno);
+		
+		return mapper.read(bno);
+	}
+}
+```
+
+get의 Test코드는 결과값을 출력하는 형식으로 작성한다.
+
+```
+src/test/java/org/zerock/service/BoardServiceTests
+
+// get(영속 : Read) 처리 Test
+@Test
+public void testGet() {
+    log.info(service.get(1L));
+}
+```
+
+### **삭제/수정 작업의 구현과 테스트**
+
+삭제/수정 작업은 메서드 리턴 타입을 void로 설계해도 되지만 엄격하게 처리하기 위해 Boolean 타입으로 처리한다.
+
+```
+org.zerock.service/BoardServiceoImpl
+
+public class BoardServiceImpl implements BoardService{
+
+    private BoardMapper mapper;
+
+    // 수정
+    @Override
+	public boolean modify(BoardVO board) {
+		
+		Log.info("modify......" + board);
+		
+        // boolean 형으로 반화하기 위해 == 1을 해준다.
+		return mapper.update(board) == 1;
+	}
+
+    //삭제
+	@Override
+	public boolean remove(Long bno) {
+		
+		Log.info("remove......" + bno);
+		
+        // boolean 형으로 반화하기 위해 == 1을 해준다.
+		return mapper.delete(bno) == 1;
+	}
+}
+```
+
+Test코드는 결과값을 출력하는 형식으로 작성한다.
+
+```
+src/test/java/org/zerock/service/BoardServiceTests
+
+// Delete(영속 : delete) 처리 Test
+@Test
+public void testUpdate() {
+    // 수정할 게시물 가져오기
+    BoardVO board = service.get(1L);
+    
+    // 존재한다면
+    if(board == null) {
+        return;
+    }
+    
+    // 수정 후 출력
+    board.setTitle("제목 수정합니다.");
+    log.info("MODIFY RESULT: " + service.modify(board));
+}
+
+// Delete(영속 : delete) 처리 Test
+@Test
+public void testDelete() {
+    log.info("REMOVE RESULT: " + service.remove(2L));
+}
+```
