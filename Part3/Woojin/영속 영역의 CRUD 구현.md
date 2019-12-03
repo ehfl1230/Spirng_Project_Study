@@ -98,7 +98,7 @@ public void testInsertSelectKey() {
 	log.info(board);
 }
 ```
----
+
 ## **Read(Select) 처리**
 
 Read 처리는 데이터를 조회하는 작업(Select)으로 PK를 이용해서 처리하므로 BoardMapper의 파라미터 역시 BoardVO 클래스의 bno 타입 정보를 이용해서 처리한다.
